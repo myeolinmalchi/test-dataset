@@ -35,7 +35,7 @@ if index_name in pinecone.list_indexes():
     pinecone.delete_index(index_name)
 
 print("OK")
-print(f"Create Index name:{index_name} ...", end=" ")
+print(f"Create index[name:{index_name}] ...", end=" ")
 
 pinecone.create_index(
     index_name,
