@@ -7,6 +7,13 @@
 
 ## Usage
 
+1. Clone repository and move directory.
+
+```
+git clone https://github.com/myeolinmalchi/test-dataset.git
+cd test-dataset
+```
+
 1. Install dependencies.
 
 ```

@@ -1,4 +1,5 @@
 import os
+import time
 
 from dotenv import load_dotenv
 from langchain.embeddings.openai import OpenAIEmbeddings
@@ -29,13 +30,13 @@ index_name = "test-dataset"
 
 embeddings = OpenAIEmbeddings(model="text-embedding-ada-002")
 
-print("Check Index exists and Delete ... ", end=" ")
+print("Check index exists and delete ... ", end="")
 
 if index_name in pinecone.list_indexes():
     pinecone.delete_index(index_name)
 
 print("OK")
-print(f"Create index[name:{index_name}] ...", end=" ")
+print(f"Create index[name:{index_name}] ... ", end="")
 
 pinecone.create_index(
     index_name,
@@ -44,6 +45,9 @@ pinecone.create_index(
 )
 
 print("OK")
+
+# 이거 안하면 오류 발생 왜??
+time.sleep(1)
 
 def embed_pdf(file_name):
     file_path = os.path.join(pdf_dir, file_name)
@@ -60,7 +64,7 @@ def embed_pdf(file_name):
     Pinecone.from_documents(docs, embeddings, index_name=index_name)
 
 for idx, file_name in enumerate(pdf_files):
-    print(f"Embedding[{idx+1}/{len(pdf_files)}] ... ", end=" ")
+    print(f"Embedding[{idx+1}/{len(pdf_files)}] ... ", end="")
     embed_pdf(file_name)
     print("OK")
 
