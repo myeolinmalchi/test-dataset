@@ -29,8 +29,13 @@ index_name = "test-dataset"
 
 embeddings = OpenAIEmbeddings(model="text-embedding-ada-002")
 
+print("Check Index exists and Delete ... ", end=" ")
+
 if index_name in pinecone.list_indexes():
     pinecone.delete_index(index_name)
+
+print("OK")
+print(f"Create Index name:{index_name} ...", end=" ")
 
 pinecone.create_index(
     index_name,
@@ -38,6 +43,7 @@ pinecone.create_index(
     metric='cosine',
 )
 
+print("OK")
 
 def embed_pdf(file_name):
     file_path = os.path.join(pdf_dir, file_name)
@@ -53,5 +59,9 @@ def embed_pdf(file_name):
     # Store the document embeddings in Pinecone
     Pinecone.from_documents(docs, embeddings, index_name=index_name)
 
-for file_name in pdf_files:
+for idx, file_name in enumerate(pdf_files):
+    print(f"Embedding[{idx+1}/{len(pdf_files)}] ... ", end=" ")
     embed_pdf(file_name)
+    print("OK")
+
+print("Complete.")
