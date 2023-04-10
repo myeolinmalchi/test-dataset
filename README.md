@@ -4,6 +4,7 @@
 
 -   `embed_dataset.py` : Embed .pdf files from dataset/ and vectorstore at Pinecone.
 -   `search_papers.py` : Search questions from Pinecone and recommends papers.
+-   `chat.py`: Search for papers related to the topic, pick one and chat with it.
 
 ## Usage
 
@@ -20,7 +21,7 @@ cd test-dataset
 pip install -r requirements.txt
 ```
 
-2. Create .env file.
+2. Create `.env` file.
 
 ```dosini
 # .env
@@ -29,7 +30,7 @@ PINECONE_API_KEY=your_pinecone_api_key
 PINECONE_ENV=youre_pinecone_environment
 ```
 
-3. Create dataset/ directory and move .pdf files.
+3. Create `dataset/` directory and move .pdf files.
 
 ```
 mkdir dataset
@@ -39,5 +40,5 @@ mkdir dataset
 
 ```
 python embed_dataset.py
-python search_papers "기계학습을 활용한 특허 분쟁 예측"
+python chat.py "기계학습을 활용한 특허 분쟁 예측"
 ```
