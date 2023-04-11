@@ -1,6 +1,6 @@
-from langchain import LLMChain
+from langchain import LLMChain, LlamaCpp
+from langchain.chains.loading import _load_qa_with_sources_chain
 from langchain.chains.question_answering import load_qa_chain
-from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.chat_models import ChatOpenAI
 from langchain.prompts import PromptTemplate
@@ -11,6 +11,7 @@ from langchain.vectorstores.base import VectorStoreRetriever
 import pinecone
 import os
 import sys
+from utils import CustomVectorStoreRetriever
 
 user_question = sys.argv[1]
 
@@ -34,6 +35,7 @@ Standalone question:''')
 
 QA_PROMPT = PromptTemplate.from_template(
 '''
+You must answer in Korean.
 You are an AI assistant providing helpful advice. You are given the following extracted parts of a long document and a question. Provide a conversational answer based on the context provided.
 You should only provide hyperlinks that reference the context below. Do NOT make up hyperlinks.
 If you can't find the answer in the context below, just say "Hmm, I'm not sure." Don't try to make up an answer.
@@ -55,7 +57,7 @@ embedded_question = embeddings.embed_query(user_question)
 def recommend_papers(top_k: int = 5):
     # Fetch the top_k most similar documents from Pinecone
     top_results = index.query(
-        top_k=top_k*2, 
+        top_k=top_k*3, 
         include_values=False, 
         include_metadata=True, 
         vector=embedded_question,
@@ -81,25 +83,33 @@ def recommend_papers(top_k: int = 5):
 
 recommended_papers = recommend_papers()
 for idx, paper in enumerate(recommended_papers):
-    print(f"{idx+1}. {paper[2]['file_name']}")
+    print(f"{idx+1}. {paper[2]['file_name']}({paper[1]})")
 
 selected_paper = int(input("\n상세한 질문을 원하는 문서의 번호를 입력하세요: "))
 
 file_name = recommended_papers[selected_paper-1][2]['file_name']
 
+llm = ChatOpenAI(model_name='gpt-3.5-turbo')
 def make_chain(vectorstore): 
     question_generator = LLMChain(
-        llm=ChatOpenAI(), 
+        llm=llm, 
         prompt=CONDENSE_PROMPT
     )
 
     doc_chain = load_qa_chain(
-        llm=ChatOpenAI(model_name='gpt-4'), 
-        prompt=QA_PROMPT
+        llm=llm, 
+        prompt=QA_PROMPT, 
     )
 
     return ConversationalRetrievalChain(
-        retriever=VectorStoreRetriever(vectorstore=vectorstore, search_kwargs={"filter": {"file_name": file_name}}), 
+        retriever=CustomVectorStoreRetriever(
+            vectorstore=vectorstore,
+            search_kwargs={
+                "filter": {
+                    "file_name": file_name
+                },
+            }, 
+        ), 
         combine_docs_chain=doc_chain, 
         question_generator=question_generator, 
         return_source_documents=True, 
