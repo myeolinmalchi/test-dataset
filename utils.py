@@ -19,3 +19,26 @@ class CustomVectorStoreRetriever(VectorStoreRetriever):
         else:
             raise ValueError(f"search_type of {self.search_type} not allowed.")
         return docs
+
+def create_chunks(sentences, max_chunk_length=1000):
+    chunks = []
+    current_chunk = ""
+    
+    for sentence in sentences:
+        # Add the current sentence to the current chunk
+        new_chunk = current_chunk + " " + sentence.strip()
+        
+        # Check if the new chunk length is within the limit
+        if len(new_chunk) <= max_chunk_length:
+            current_chunk = new_chunk
+        else:
+            # If the new chunk exceeds the limit, add the current chunk to the list of chunks
+            chunks.append(current_chunk.strip())
+            # Start a new chunk with the current sentence
+            current_chunk = sentence.strip()
+
+    # Add the last chunk if it's not empty
+    if current_chunk.strip():
+        chunks.append(current_chunk.strip())
+
+    return chunks
