@@ -1,5 +1,4 @@
-from langchain import LLMChain, LlamaCpp
-from langchain.chains.loading import _load_qa_with_sources_chain
+from langchain import LLMChain
 from langchain.chains.question_answering import load_qa_chain
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.chat_models import ChatOpenAI
@@ -7,7 +6,6 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain
 from langchain.vectorstores import Pinecone
 from dotenv import load_dotenv
-from langchain.vectorstores.base import VectorStoreRetriever
 import pinecone
 import os
 import sys
@@ -24,17 +22,17 @@ OPENAI_API_KEY = os.environ['OPENAI_API_KEY']
 PINECONE_API_KEY = os.environ['PINECONE_API_KEY']
 PINECONE_ENV = os.environ['PINECONE_ENV']
 
-CONDENSE_PROMPT = PromptTemplate.from_template(
-'''
+CONDENSE_PROMPT = PromptTemplate(
+template='''
 Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question.
 
 Chat History:
 {chat_history}
 Follow Up Input: {question}
-Standalone question:''')
+Standalone question:''', input_variables=["chat_history", "question"])
 
-QA_PROMPT = PromptTemplate.from_template(
-'''
+QA_PROMPT = PromptTemplate(
+template='''
 You must answer in Korean.
 You are an AI assistant providing helpful advice. You are given the following extracted parts of a long document and a question. Provide a conversational answer based on the context provided.
 You should only provide hyperlinks that reference the context below. Do NOT make up hyperlinks.
@@ -45,7 +43,7 @@ Question: {question}
 =========
 {context}
 =========
-Answer in Markdown:''')
+Answer in Markdown:''', input_variables=["question", "context"])
 
 embeddings = OpenAIEmbeddings(model="text-embedding-ada-002")
 index_name = "test-dataset"
@@ -83,17 +81,24 @@ def recommend_papers(top_k: int = 5):
 
 recommended_papers = recommend_papers()
 for idx, paper in enumerate(recommended_papers):
-    print(f"{idx+1}. {paper[2]['file_name']}({paper[1]})")
+    print(f"({idx+1}) {paper[2]['file_name']}({paper[1]})")
 
-selected_paper = int(input("\n상세한 질문을 원하는 문서의 번호를 입력하세요: "))
+selected_paper = int(input("\nSelect paper number: "))
 
 file_name = recommended_papers[selected_paper-1][2]['file_name']
 
-llm = ChatOpenAI(model_name='gpt-3.5-turbo')
+llm = ChatOpenAI(
+    model_name='gpt-4', 
+    temperature="0.3", 
+    request_timeout=3600, 
+    max_retries=30, 
+    streaming=True, 
+    max_tokens=512, 
+)
 def make_chain(vectorstore): 
     question_generator = LLMChain(
         llm=llm, 
-        prompt=CONDENSE_PROMPT
+        prompt=CONDENSE_PROMPT, 
     )
 
     doc_chain = load_qa_chain(
@@ -113,6 +118,7 @@ def make_chain(vectorstore):
         combine_docs_chain=doc_chain, 
         question_generator=question_generator, 
         return_source_documents=True, 
+        verbose=True, 
     )
 
 
@@ -125,7 +131,7 @@ chat_history = []
 chain = make_chain(vectorstore)
 
 while True:
-    query = input("\n질문: ")
+    query = input("\nQuestion: ")
     result = chain({"question": query, "chat_history": chat_history})
-    print(f"\n답변:\n{result['answer']}")
+    print(f"\nAnswer:\n{result['answer']}")
     chat_history.append((query, result['answer']))
