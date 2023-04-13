@@ -144,9 +144,6 @@ def make_chain(vectorstore):
                     "file_name": {
                         "$eq": file_name
                     },
-                    "cdc": {
-                        "$in":"" 
-                    }
                 },
             }, 
         ), 
