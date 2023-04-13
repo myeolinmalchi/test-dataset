@@ -4,6 +4,7 @@ from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.chat_models import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain
+from langchain.schema import HumanMessage, SystemMessage
 from langchain.vectorstores import Pinecone
 from dotenv import load_dotenv
 import pinecone
@@ -51,6 +52,30 @@ pinecone.init(api_key=PINECONE_API_KEY, environment=PINECONE_ENV)
 
 index = pinecone.Index(index_name)
 embedded_question = embeddings.embed_query(user_question)
+
+chat = ChatOpenAI(model="gpt-3.5-turbo")
+def extract_cpc(question):
+    system_message = SystemMessage(content="You are a helpful AI assistant.")
+    user_message = HumanMessage(content=f'''
+    I have a [Question] and want to search for articles on a related topic.
+    To improve the accuracy of the search, I want to perform a filtering process based on CPC.
+    For [Question], guess the CPC and answer it in a python array.
+    Please do not include explanations and quotation marks in your answer.
+    The CPC is only guessed for the major classification, not the minor classification.
+    Try to guess as many CPCs as possible.
+
+    Wrong Answer: ['F03D 13/10', 'F03D 11/00']
+    Correct Answer: ['F03D', 'F03D']
+
+    [Question]: {question}''')
+
+    answer = chat.generate([[system_message, user_message]])
+    return answer.generations[0][0].text
+
+cpc_string = extract_cpc(user_question)
+cpc_list = eval(cpc_string)
+print(f"{user_question} (cpc=[{', '.join(cpc_list)}])")
+
 # Recommend Papers by initail question
 def recommend_papers(top_k: int = 5):
     # Fetch the top_k most similar documents from Pinecone
@@ -59,6 +84,11 @@ def recommend_papers(top_k: int = 5):
         include_values=False, 
         include_metadata=True, 
         vector=embedded_question,
+        filter={
+            "cpc": {
+                "$in": cpc_list
+            }
+        }
     )
 
     results = [(result.id, result.score, result.metadata) for result in top_results['matches']]
@@ -81,7 +111,7 @@ def recommend_papers(top_k: int = 5):
 
 recommended_papers = recommend_papers()
 for idx, paper in enumerate(recommended_papers):
-    print(f"({idx+1}) {paper[2]['file_name']}({paper[1]})")
+    print(f"({idx+1}) {paper[2]['file_name']} (score={paper[1]}, cpc=[{', '.join(paper[2]['cpc'])}])")
 
 selected_paper = int(input("\nSelect paper number: "))
 
@@ -111,7 +141,12 @@ def make_chain(vectorstore):
             vectorstore=vectorstore,
             search_kwargs={
                 "filter": {
-                    "file_name": file_name
+                    "file_name": {
+                        "$eq": file_name
+                    },
+                    "cdc": {
+                        "$in":"" 
+                    }
                 },
             }, 
         ), 
@@ -120,6 +155,7 @@ def make_chain(vectorstore):
         return_source_documents=True, 
         verbose=True, 
     )
+
 
 
 vectorstore = Pinecone.from_existing_index(
