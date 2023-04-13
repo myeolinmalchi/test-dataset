@@ -20,6 +20,7 @@ class CustomVectorStoreRetriever(VectorStoreRetriever):
             raise ValueError(f"search_type of {self.search_type} not allowed.")
         return docs
 
+# TODO 한 문장이 최대 길이 넘어가는 경우 고려
 def create_chunks(sentences, max_chunk_length=1000):
     chunks = []
     current_chunk = ""
