@@ -2,10 +2,11 @@ import os
 import time
 
 from dotenv import load_dotenv
+from langchain.chat_models import ChatOpenAI
 from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain.schema import HumanMessage, SystemMessage
 from langchain.vectorstores import Pinecone
 from langchain.document_loaders import PyPDFLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
 from kss import split_sentences
 
 import pinecone
@@ -54,6 +55,25 @@ def main():
     # 이거 안하면 오류 발생 왜??
     time.sleep(1)
 
+    chat = ChatOpenAI(model="gpt-3.5-turbo")
+    def extract_cpc(text):
+        system_message = SystemMessage(content="You are a helpful AI assistant.")
+        user_message = HumanMessage(content=f'''
+        Here is a summary of the patent. 
+        Based on the summary, guess the CPC of the patent and answer in a json array.
+        Please do not include explanations and quotation marks in your answer.
+        The CPC is only guessed for the major classification, not the minor classification.
+        Try to guess as many CPCs as possible.
+        
+        Wrong Answer: ['F03D 13/10', 'F03D 11/00']
+        Correct Answer: ['F03D', 'F03D']
+
+        Summary:
+        {text}''')
+
+        answer = chat.generate([[system_message, user_message]])
+        return answer.generations[0][0].text
+
     # Embed and Store pdf file
     def embed_pdf(idx, file_name):
         file_path = os.path.join(pdf_dir, file_name)
@@ -64,10 +84,15 @@ def main():
 
         temp = split_sentences(
             text=[page.page_content for page in pages], 
-            strip=True, 
+            strip=False, 
         )
+
         texts = sum(temp, [])
+
         chuncks = create_chunks(texts)
+
+        cpc_string = extract_cpc(chuncks[0])
+        cpc_list = eval(cpc_string)
 
         '''
         # Split pages into chunks for better text representation
@@ -83,7 +108,7 @@ def main():
             chuncks, 
             embeddings, 
             index_name=index_name, 
-            metadatas=[{"file_name": f"{idx+1}. {file_name}"} for _ in range(len(chuncks))]
+            metadatas=[{"file_name": f"{idx+1}. {file_name}", "cpc": cpc_list} for _ in range(len(chuncks))]
         )
 
     for idx, file_name in enumerate(pdf_files):
